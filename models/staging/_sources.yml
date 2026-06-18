@@ -1,0 +1,27 @@
+version: 2
+
+sources:
+  - name: public
+    database: ma_base
+    schema: public
+    description: "Données brutes chargées via load_data.py (yfinance)"
+    tables:
+      - name: stock_prices_raw
+        description: "Prix historiques d'actions téléchargés via yfinance"
+        columns:
+          - name: index
+            description: "Index de ligne auto-généré"
+          - name: Date
+            description: "Date de la cotation"
+          - name: Ticker
+            description: "Code boursier (AAPL, MSFT, GOOGL)"
+          - name: Open
+            description: "Prix d'ouverture"
+          - name: High
+            description: "Prix le plus haut de la journée"
+          - name: Low
+            description: "Prix le plus bas de la journée"
+          - name: Close
+            description: "Prix de clôture"
+          - name: Volume
+            description: "Volume de transactions"

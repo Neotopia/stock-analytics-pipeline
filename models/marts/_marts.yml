@@ -1,0 +1,37 @@
+version: 2
+
+models:
+  - name: daily_returns
+    description: "Rendements quotidiens par action en % (couche Gold) — alimenté par Metabase"
+    columns:
+      - name: date
+        description: "Date de la cotation"
+        tests:
+          - not_null
+      - name: ticker
+        description: "Code boursier"
+        tests:
+          - not_null
+      - name: close
+        description: "Prix de clôture"
+      - name: prev_close
+        description: "Prix de clôture de la veille"
+      - name: daily_return_pct
+        description: "Variation en % par rapport à la veille"
+
+  - name: top_movers
+    description: "Top 5 actions ayant le plus varié sur les 7 derniers jours (couche Gold)"
+    columns:
+      - name: ticker
+        description: "Code boursier"
+        tests:
+          - not_null
+          - unique
+      - name: variation_semaine
+        description: "Écart entre le prix le plus haut et le plus bas sur 7 jours"
+      - name: prix_min
+        description: "Prix le plus bas sur 7 jours"
+      - name: prix_max
+        description: "Prix le plus haut sur 7 jours"
+      - name: nb_jours
+        description: "Nombre de jours de cotation sur la période"
