@@ -2,3 +2,17 @@
 target/
 dbt_packages/
 logs/
+
+# Fichiers de connexion — ne JAMAIS committer
+profiles.yml
+.env
+*.env
+
+# Fichiers systeme Mac — inutiles dans git
+.DS_Store
+**/.DS_Store
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
