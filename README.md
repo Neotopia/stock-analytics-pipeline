@@ -31,8 +31,8 @@ Follows the **Medallion architecture** (Bronze / Silver / Gold):
 
 ```bash
 # 1. Clone and install dependencies
-git clone https://github.com/Neotopia/analytics-mvp.git
-cd analytics-mvp
+git clone https://github.com/Neotopia/stock-analytics-pipeline.git
+cd stock-analytics-pipeline
 pip3 install yfinance pandas sqlalchemy psycopg2-binary python-dotenv dbt-postgres
 
 # 2. Configure your database connection
@@ -51,7 +51,7 @@ dbt test
 ## Project structure
 
 ```
-analytics-mvp/
+stock-analytics-pipeline/
 ├── load_data.py          # Ingestion script: yfinance → PostgreSQL
 ├── .env.example          # Database connection template (never commit .env)
 ├── models/
