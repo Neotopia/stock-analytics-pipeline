@@ -2,36 +2,111 @@ version: 2
 
 models:
   - name: daily_returns
-    description: "Rendements quotidiens par action en % (couche Gold) — alimenté par Metabase"
+    description: "Gold layer — daily return (%) per ticker. Built for Metabase dashboards."
     columns:
       - name: date
-        description: "Date de la cotation"
+        description: "Trading date."
         tests:
           - not_null
       - name: ticker
-        description: "Code boursier"
+        description: "Stock or index symbol."
         tests:
           - not_null
       - name: close
-        description: "Prix de clôture"
+        description: "Closing price."
+        tests:
+          - not_null
       - name: prev_close
-        description: "Prix de clôture de la veille"
+        description: "Previous trading day's closing price (NULL on the first row per ticker)."
       - name: daily_return_pct
-        description: "Variation en % par rapport à la veille"
+        description: "Percentage change from previous closing price. NULL on first row per ticker."
 
   - name: top_movers
-    description: "Top 5 actions ayant le plus varié sur les 7 derniers jours (couche Gold)"
+    description: "Gold layer — top 5 most volatile tickers over the last 7 trading days (overall ranking, no sector split)."
     columns:
       - name: ticker
-        description: "Code boursier"
+        description: "Stock symbol."
         tests:
           - not_null
           - unique
-      - name: variation_semaine
-        description: "Écart entre le prix le plus haut et le plus bas sur 7 jours"
-      - name: prix_min
-        description: "Prix le plus bas sur 7 jours"
-      - name: prix_max
-        description: "Prix le plus haut sur 7 jours"
-      - name: nb_jours
-        description: "Nombre de jours de cotation sur la période"
+      - name: weekly_range
+        description: "Spread between weekly high and low price (volatility proxy)."
+      - name: low_price
+        description: "Lowest price recorded over the last 7 trading days."
+      - name: high_price
+        description: "Highest price recorded over the last 7 trading days."
+      - name: trading_days
+        description: "Number of trading days with data in the 7-day window."
+
+  - name: index_performance
+    description: "Gold layer — 1-day, YTD, and 2-year price performance for each tracked market index."
+    columns:
+      - name: ticker
+        description: "Yahoo Finance index symbol (e.g. ^GSPC, ^FCHI)."
+        tests:
+          - not_null
+          - unique
+      - name: name
+        description: "Full index name (e.g. S&P 500, CAC 40)."
+      - name: market
+        description: "ISO country code of the index (US, FR, UK, JP, IN)."
+      - name: latest_date
+        description: "Most recent trading date available in the data."
+      - name: close
+        description: "Latest closing level of the index."
+      - name: return_1d_pct
+        description: "Price change (%) versus the previous trading day."
+      - name: return_ytd_pct
+        description: "Price change (%) since the first trading day of the current year."
+      - name: return_2y_pct
+        description: "Price change (%) since the start of the 2-year rolling window."
+
+  - name: sector_top_movers
+    description: "Gold layer — top 3 most volatile stocks per GICS sector over the last 7 trading days."
+    columns:
+      - name: ticker
+        description: "Stock symbol."
+        tests:
+          - not_null
+      - name: name
+        description: "Full company name."
+      - name: sector
+        description: "GICS sector (Technology, Financial, Healthcare, Consumer, Energy)."
+        tests:
+          - not_null
+      - name: etf
+        description: "SPDR sector ETF this stock belongs to."
+      - name: weekly_range
+        description: "Spread between weekly high and low price (volatility proxy)."
+      - name: low_price
+        description: "Lowest price recorded over the last 7 trading days."
+      - name: high_price
+        description: "Highest price recorded over the last 7 trading days."
+      - name: trading_days
+        description: "Number of trading days with data in the 7-day window."
+      - name: rank_in_sector
+        description: "Volatility rank within the sector (1 = most volatile). Max value: 3."
+
+  - name: whale_signals
+    description: "Gold layer — stocks where volume exceeded 2.5× the 20-day rolling average in the last 7 days. Signals potential institutional (whale) activity."
+    columns:
+      - name: ticker
+        description: "Stock symbol."
+        tests:
+          - not_null
+      - name: name
+        description: "Full company name."
+      - name: sector
+        description: "GICS sector."
+      - name: date
+        description: "Date on which the volume spike was observed."
+        tests:
+          - not_null
+      - name: close
+        description: "Closing price on the spike date."
+      - name: volume
+        description: "Trading volume on the spike date."
+      - name: avg_volume_20d
+        description: "20-day rolling average volume (excluding the spike day)."
+      - name: volume_ratio
+        description: "Ratio of spike volume to 20-day average (e.g. 3.2 = 3.2× normal volume)."
