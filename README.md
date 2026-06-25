@@ -1,5 +1,7 @@
 # stock-analytics-pipeline
 
+![dbt CI](https://github.com/Neotopia/stock-analytics-pipeline/actions/workflows/dbt-ci.yml/badge.svg)
+
 > 🚧 **Work in progress** — this project is actively being built and extended. New layers, models, and visualizations are added incrementally as I progress through the stack.
 
 End-to-end analytics pipeline built from scratch as a portfolio project, covering data ingestion, storage, transformation, and visualization.
@@ -84,8 +86,15 @@ stock-analytics-pipeline/
 │   └── _seeds.yml        # dbt seed documentation and tests
 ├── tests/                # Custom singular tests (SQL queries returning failing rows)
 ├── macros/               # Reusable Jinja/SQL snippets
-└── analyses/             # Exploratory SQL — not materialized in the database
+├── analyses/             # Exploratory SQL — not materialized in the database
+└── .github/workflows/    # CI/CD — dbt compile on every push
 ```
+
+## CI / CD
+
+Every push to `main` triggers a GitHub Actions workflow that installs dependencies, runs `dbt deps`, and compiles all models — validating Jinja syntax and `ref()` dependencies without requiring a live database.
+
+> 🚧 **Planned — CI Option B:** full `dbt run` + `dbt test` against an ephemeral PostgreSQL service container spun up by GitHub Actions, with a minimal fixture dataset injected at runtime. This removes the dependency on a live database while giving complete test coverage in CI.
 
 ## Key concepts practised
 
@@ -97,3 +106,4 @@ stock-analytics-pipeline/
 - PostgreSQL window functions: `DISTINCT ON`, `ROW_NUMBER() OVER (PARTITION BY)`, rolling averages
 - Credential management with python-dotenv
 - dbt seeds for reference data with auto-refresh logic
+- GitHub Actions CI — dbt compile on every push (Option B with ephemeral PostgreSQL in progress)
