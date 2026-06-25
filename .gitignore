@@ -16,3 +16,6 @@ profiles.yml
 __pycache__/
 *.pyc
 *.pyo
+
+# Practice / scratch files — not part of the portfolio
+exercices_pandas_index.py
