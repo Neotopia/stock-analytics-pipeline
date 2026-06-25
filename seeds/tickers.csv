@@ -1,0 +1,31 @@
+ticker,name,sector,market,type,source,etf
+^GSPC,S&P 500,,US,index,manual,
+^FCHI,CAC 40,,FR,index,manual,
+^FTSE,FTSE 100,,UK,index,manual,
+^N225,Nikkei 225,,JP,index,manual,
+^BSESN,Sensex,,IN,index,manual,
+AAPL,Apple Inc,Technology,US,stock,spdr,XLK
+MSFT,Microsoft Corp,Technology,US,stock,spdr,XLK
+NVDA,NVIDIA Corp,Technology,US,stock,spdr,XLK
+AVGO,Broadcom Inc,Technology,US,stock,spdr,XLK
+META,Meta Platforms,Technology,US,stock,spdr,XLK
+BRK-B,Berkshire Hathaway B,Financial,US,stock,spdr,XLF
+JPM,JPMorgan Chase,Financial,US,stock,spdr,XLF
+V,Visa Inc,Financial,US,stock,spdr,XLF
+MA,Mastercard Inc,Financial,US,stock,spdr,XLF
+BAC,Bank of America,Financial,US,stock,spdr,XLF
+LLY,Eli Lilly,Healthcare,US,stock,spdr,XLV
+UNH,UnitedHealth Group,Healthcare,US,stock,spdr,XLV
+JNJ,Johnson & Johnson,Healthcare,US,stock,spdr,XLV
+MRK,Merck & Co,Healthcare,US,stock,spdr,XLV
+ABBV,AbbVie Inc,Healthcare,US,stock,spdr,XLV
+AMZN,Amazon.com Inc,Consumer,US,stock,spdr,XLY
+TSLA,Tesla Inc,Consumer,US,stock,spdr,XLY
+HD,Home Depot Inc,Consumer,US,stock,spdr,XLY
+MCD,McDonald's Corp,Consumer,US,stock,spdr,XLY
+LOW,Lowe's Companies,Consumer,US,stock,spdr,XLY
+XOM,ExxonMobil Corp,Energy,US,stock,spdr,XLE
+CVX,Chevron Corp,Energy,US,stock,spdr,XLE
+COP,ConocoPhillips,Energy,US,stock,spdr,XLE
+EOG,EOG Resources,Energy,US,stock,spdr,XLE
+SLB,SLB (Schlumberger),Energy,US,stock,spdr,XLE
