@@ -23,6 +23,46 @@ yfinance + Finviz → PostgreSQL → dbt → Metabase
 
 Follows the **Medallion architecture** (Bronze / Silver / Gold):
 
+```mermaid
+flowchart LR
+    subgraph Sources
+        A[yfinance\nOHLCV prices]
+        B[Finviz\nvolatile + analyst buys]
+        C[SPDR ETFs\nExcel holdings]
+    end
+
+    subgraph Bronze["🥉 Bronze — PostgreSQL (raw)"]
+        D[(stock_prices_raw)]
+        E[(ticker_news_raw)]
+        F[(seeds/tickers.csv)]
+    end
+
+    subgraph Silver["🥈 Silver — dbt staging"]
+        G[stg_stock_prices\nclean · typed · deduplicated]
+    end
+
+    subgraph Gold["🥇 Gold — dbt marts"]
+        H[index_performance]
+        I[top_movers]
+        J[sector_top_movers]
+        K[whale_signals]
+        L[daily_returns]
+    end
+
+    subgraph Viz["📊 Metabase"]
+        M[Stock Analytics\nDashboard]
+    end
+
+    A --> D
+    B --> D
+    B --> E
+    C --> F
+    D --> G
+    F --> G
+    G --> H & I & J & K & L
+    H & I & J & K & L --> M
+```
+
 - **Bronze** — raw tables loaded by `load_data.py`: `stock_prices_raw` (OHLCV) and `ticker_news_raw` (Finviz headlines)
 - **Silver** — `stg_stock_prices` (cleaned, typed, filtered — one row per ticker per day)
 - **Gold** — marts ready for Metabase queries:
@@ -31,6 +71,16 @@ Follows the **Medallion architecture** (Bronze / Silver / Gold):
   - `sector_top_movers` — top 3 per sector by weekly price range
   - `whale_signals` — stocks with volume > 2.5× their 20-day rolling average
   - `daily_returns` — day-over-day return per ticker
+
+## Dashboard
+
+Interactive **Stock Analytics** dashboard built with Metabase, connected directly to the Gold layer.
+
+> ⚠️ Runs locally — start Metabase and PostgreSQL, then open the link below.
+
+[→ Open dashboard](http://localhost:3000/public/dashboard/0ad7bcd8-7d38-4638-b35c-7f33c3d2af31) *(localhost only)*
+
+Features: date filter, KPI cards per market index, per-market trend charts (Global Market / US Market tabs).
 
 ## Ticker universe
 
