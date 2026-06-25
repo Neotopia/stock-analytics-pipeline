@@ -1,38 +1,22 @@
-
-# Name your project! Project names should contain only lowercase characters
-# and underscores. A good package name should reflect your organization's
-# name or the intended use of these models
 name: 'analytics_mvp'
 version: '1.0.0'
-
-# This setting configures which "profile" dbt uses for this project.
 profile: 'analytics_mvp'
 
-# These configurations specify where dbt should look for different types of files.
-# The `model-paths` config, for example, states that models in this project can be
-# found in the "models/" directory. You probably won't need to change these!
-model-paths: ["models"]
+model-paths:    ["models"]
 analysis-paths: ["analyses"]
-test-paths: ["tests"]
-seed-paths: ["seeds"]
-macro-paths: ["macros"]
+test-paths:     ["tests"]
+seed-paths:     ["seeds"]
+macro-paths:    ["macros"]
 snapshot-paths: ["snapshots"]
 
-clean-targets:         # directories to be removed by `dbt clean`
+clean-targets:
   - "target"
   - "dbt_packages"
 
-
-# Configuring models
-# Full documentation: https://docs.getdbt.com/docs/configuring-models
-
-# In this example config, we tell dbt to build all models in the example/
-# directory as views. These settings can be overridden in the individual model
-# files using the `{{ config(...) }}` macro.
 models:
   analytics_mvp:
     staging:
-      +materialized: view       # staging = vues légères, recalculées à chaque dbt run
-      +schema: staging
+      +materialized: view    # lightweight views, always fresh on each dbt run
+      +schema: staging       # written to public_staging schema in PostgreSQL
     marts:
-      +materialized: table      # marts = tables persistées, plus rapides pour Metabase
+      +materialized: table   # persisted tables, optimized for Metabase queries
