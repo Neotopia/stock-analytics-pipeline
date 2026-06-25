@@ -45,5 +45,5 @@ jobs:
                 threads: 1
           EOF
 
-      - name: Compile dbt models (no DB required)
-        run: dbt compile
+      - name: Parse dbt models (validates Jinja + ref() without DB connection)
+        run: dbt parse
