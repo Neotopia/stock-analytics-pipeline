@@ -7,23 +7,41 @@ End-to-end analytics pipeline built from scratch as a portfolio project, coverin
 ## Stack
 
 ```
-yfinance → PostgreSQL → dbt → Metabase (coming soon)
+yfinance + Finviz → PostgreSQL → dbt → Metabase (in progress)
 ```
 
 | Layer | Tool | Role |
 |-------|------|------|
-| Ingestion | Python · yfinance · pandas | Download stock prices from Yahoo Finance, reshape and load to PostgreSQL |
-| Storage | PostgreSQL | Bronze layer (raw data) and Gold layer (transformed tables) |
-| Transformation | dbt | Staging views, daily returns, top movers — tested and documented |
+| Ingestion | Python · yfinance · finvizfinance · pandas | Multi-source: SPDR ETF holdings, Finviz volatile picks, analyst buys, global indices |
+| Storage | PostgreSQL | Bronze layer (raw data) — `stock_prices_raw`, `ticker_news_raw` |
+| Transformation | dbt | Silver (staging) + Gold (marts) — tested and documented |
 | Visualization | Metabase | Dashboard connected to PostgreSQL Gold layer *(in progress)* |
 
 ## Architecture
 
 Follows the **Medallion architecture** (Bronze / Silver / Gold):
 
-- **Bronze** — raw table `stock_prices_raw`, loaded by `load_data.py`
-- **Silver** — staging view `stg_stock_prices` (cleaned, typed, filtered)
-- **Gold** — marts `daily_returns`, `top_movers` (business-ready)
+- **Bronze** — raw tables loaded by `load_data.py`: `stock_prices_raw` (OHLCV) and `ticker_news_raw` (Finviz headlines)
+- **Silver** — `stg_stock_prices` (cleaned, typed, filtered — one row per ticker per day)
+- **Gold** — marts ready for Metabase queries:
+  - `index_performance` — 1D / YTD / 2Y returns for 5 global indices
+  - `top_movers` — top 5 most volatile stocks over the last 7 days (overall)
+  - `sector_top_movers` — top 3 per sector by weekly price range
+  - `whale_signals` — stocks with volume > 2.5× their 20-day rolling average
+  - `daily_returns` — day-over-day return per ticker
+
+## Ticker universe
+
+Tickers are selected dynamically from three sources and combined at runtime:
+
+| Source | Description | Count |
+|--------|-------------|-------|
+| SPDR Sector ETFs | Top 5 holdings per sector (XLK, XLF, XLV, XLY, XLE) via SSGA daily Excel files | ~25 stocks |
+| Finviz volatile | Most volatile S&P 500 + NASDAQ 100 stocks by absolute daily change | 5 stocks |
+| Finviz analyst buys | S&P 500 stocks with Strong Buy consensus, sorted by volume | 5 stocks |
+| Indices | 5 global indices: S&P 500, CAC 40, FTSE 100, Nikkei 225, Sensex | 5 indices |
+
+The static SPDR universe is stored in `seeds/tickers.csv` and auto-refreshed when older than 30 days. Finviz picks are fetched live at each pipeline run.
 
 ## Getting started
 
@@ -33,7 +51,8 @@ Follows the **Medallion architecture** (Bronze / Silver / Gold):
 # 1. Clone and install dependencies
 git clone https://github.com/Neotopia/stock-analytics-pipeline.git
 cd stock-analytics-pipeline
-pip3 install yfinance pandas sqlalchemy psycopg2-binary python-dotenv dbt-postgres
+pip3 install yfinance pandas sqlalchemy psycopg2-binary python-dotenv \
+             dbt-postgres requests openpyxl finvizfinance python-dateutil
 
 # 2. Configure your database connection
 cp .env.example .env
@@ -43,7 +62,8 @@ cp .env.example .env
 python3 load_data.py
 
 # 4. Run dbt transformations
-dbt deps
+dbt deps        # install dbt_utils package
+dbt seed        # load seeds/tickers.csv into PostgreSQL
 dbt run
 dbt test
 ```
@@ -52,24 +72,28 @@ dbt test
 
 ```
 stock-analytics-pipeline/
-├── load_data.py          # Ingestion script: yfinance → PostgreSQL
+├── load_data.py          # Ingestion: SPDR + Finviz + yfinance → PostgreSQL
 ├── .env.example          # Database connection template (never commit .env)
+├── dbt_project.yml       # dbt config (materializations, schemas)
+├── packages.yml          # dbt package dependencies (dbt_utils)
 ├── models/
-│   ├── staging/          # Silver layer — stg_stock_prices
-│   └── marts/            # Gold layer — daily_returns, top_movers
-├── tests/                # Custom dbt singular tests
-└── dbt_project.yml       # dbt configuration
+│   ├── staging/          # Silver layer — stg_stock_prices (clean, cast, filter)
+│   └── marts/            # Gold layer — index_performance, top_movers, sector_top_movers, whale_signals, daily_returns
+├── seeds/
+│   ├── tickers.csv       # Static ticker universe (5 indices + 25 SPDR stocks)
+│   └── _seeds.yml        # dbt seed documentation and tests
+├── tests/                # Custom singular tests (SQL queries returning failing rows)
+├── macros/               # Reusable Jinja/SQL snippets
+└── analyses/             # Exploratory SQL — not materialized in the database
 ```
 
 ## Key concepts practised
 
-- pandas MultiIndex reshaping (wide → long format)
-- dbt materializations: `view` for staging, `table` for marts
-- dbt testing: native tests + dbt-expectations
-- PostgreSQL schemas for environment isolation (dev / prod)
+- Multi-source ingestion: SSGA Excel files, Finviz screener, yfinance, news API
+- pandas MultiIndex reshaping (wide → long format via `stack()`)
+- Python logging module and type hints throughout
+- dbt Medallion architecture: `view` for staging, `table` for marts
+- dbt testing: `not_null`, `unique`, `dbt_utils.unique_combination_of_columns`
+- PostgreSQL window functions: `DISTINCT ON`, `ROW_NUMBER() OVER (PARTITION BY)`, rolling averages
 - Credential management with python-dotenv
-- Git history rewriting with git-filter-repo
-
-## Tickers covered
-
-`AAPL` · `MSFT` · `GOOGL` — easily extended by editing the `TICKERS` list in `load_data.py`.
+- dbt seeds for reference data with auto-refresh logic
