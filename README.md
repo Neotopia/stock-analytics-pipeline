@@ -9,7 +9,7 @@ End-to-end analytics pipeline built from scratch as a portfolio project, coverin
 ## Stack
 
 ```
-yfinance + Finviz → PostgreSQL → dbt → Metabase (in progress)
+yfinance + Finviz → PostgreSQL → dbt → Metabase
 ```
 
 | Layer | Tool | Role |
@@ -17,7 +17,7 @@ yfinance + Finviz → PostgreSQL → dbt → Metabase (in progress)
 | Ingestion | Python · yfinance · finvizfinance · pandas | Multi-source: SPDR ETF holdings, Finviz volatile picks, analyst buys, global indices |
 | Storage | PostgreSQL | Bronze layer (raw data) — `stock_prices_raw`, `ticker_news_raw` |
 | Transformation | dbt | Silver (staging) + Gold (marts) — tested and documented |
-| Visualization | Metabase | Dashboard connected to PostgreSQL Gold layer *(in progress)* |
+| Visualization | Metabase | Interactive dashboard connected to PostgreSQL Gold layer — date filter, KPI cards, per-market trend charts |
 
 ## Architecture
 
