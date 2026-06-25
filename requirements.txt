@@ -1,0 +1,20 @@
+# Data ingestion
+yfinance
+finvizfinance
+requests
+openpyxl
+
+# Data manipulation
+pandas
+python-dateutil
+
+# Database
+sqlalchemy
+psycopg2-binary
+
+# Environment
+python-dotenv
+
+# dbt
+dbt-core
+dbt-postgres
