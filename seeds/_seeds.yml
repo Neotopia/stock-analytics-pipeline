@@ -1,0 +1,32 @@
+version: 2
+
+seeds:
+  - name: tickers
+    description: >
+      Reference table mapping tickers to their sector, market, and selection source.
+      Loaded into PostgreSQL via `dbt seed`. Refreshed monthly via refresh_seeds_csv() in load_data.py.
+    columns:
+      - name: ticker
+        description: "Yahoo Finance ticker symbol (e.g. AAPL, ^GSPC). Uses '-' instead of '.' (e.g. BRK-B)."
+        tests:
+          - not_null
+          - unique
+      - name: name
+        description: "Full company or index name."
+      - name: sector
+        description: "GICS sector label (Technology, Financial, Healthcare, Consumer, Energy). Empty for indices."
+      - name: market
+        description: "ISO country code of the primary listing (US, FR, UK, JP, IN)."
+      - name: type
+        description: "Ticker type: 'stock' or 'index'."
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['stock', 'index']
+      - name: source
+        description: >
+          How this ticker was selected — NOT where price data comes from.
+          All prices (stocks and indices alike) are downloaded from Yahoo Finance via yf.download().
+          Values: 'spdr' (SSGA ETF holdings), 'wikipedia_sp500' (fallback), 'manual' (fixed indices).
+      - name: etf
+        description: "SPDR sector ETF this stock belongs to (XLK, XLF, XLV, XLY, XLE). Empty for indices."
