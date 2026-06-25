@@ -2,26 +2,23 @@ version: 2
 
 sources:
   - name: public
-    database: ma_base
     schema: public
-    description: "Données brutes chargées via load_data.py (yfinance)"
+    description: "Raw data loaded by load_data.py from Yahoo Finance via yfinance."
     tables:
       - name: stock_prices_raw
-        description: "Prix historiques d'actions téléchargés via yfinance"
+        description: "Raw OHLCV stock prices — one row per trading day per ticker."
         columns:
-          - name: index
-            description: "Index de ligne auto-généré"
           - name: Date
-            description: "Date de la cotation"
+            description: "Trading date (written with uppercase by yfinance)."
           - name: Ticker
-            description: "Code boursier (AAPL, MSFT, GOOGL)"
+            description: "Stock or index symbol (AAPL, MSFT, ^GSPC, ^FCHI…)."
           - name: Open
-            description: "Prix d'ouverture"
+            description: "Opening price of the trading session."
           - name: High
-            description: "Prix le plus haut de la journée"
+            description: "Highest price reached during the trading session."
           - name: Low
-            description: "Prix le plus bas de la journée"
+            description: "Lowest price reached during the trading session."
           - name: Close
-            description: "Prix de clôture"
+            description: "Closing price of the trading session."
           - name: Volume
-            description: "Volume de transactions"
+            description: "Number of shares traded during the session."
