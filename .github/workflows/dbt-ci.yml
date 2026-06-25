@@ -1,0 +1,49 @@
+name: dbt CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  dbt-compile:
+    name: Compile dbt models
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Install dbt packages
+        run: dbt deps
+
+      - name: Write dbt profiles
+        # Creates a minimal profiles.yml pointing to a dummy DB — enough for dbt compile
+        run: |
+          mkdir -p ~/.dbt
+          cat > ~/.dbt/profiles.yml << 'EOF'
+          analytics_mvp:
+            target: dev
+            outputs:
+              dev:
+                type: postgres
+                host: localhost
+                user: postgres
+                password: postgres
+                port: 5432
+                dbname: analytics
+                schema: public
+                threads: 1
+          EOF
+
+      - name: Compile dbt models (no DB required)
+        run: dbt compile
