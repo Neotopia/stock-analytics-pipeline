@@ -22,7 +22,8 @@ seeds:
         tests:
           - not_null
           - accepted_values:
-              values: ['stock', 'index']
+              arguments:
+                values: ['stock', 'index']
       - name: source
         description: >
           How this ticker was selected — NOT where price data comes from.
