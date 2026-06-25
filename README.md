@@ -140,7 +140,6 @@ stock-analytics-pipeline/
 │   ├── tickers.csv       # Static ticker universe (5 indices + 25 SPDR stocks)
 │   └── _seeds.yml        # dbt seed documentation and tests
 ├── tests/                # Custom singular tests (SQL queries returning failing rows)
-├── macros/               # Reusable Jinja/SQL snippets
 ├── analyses/             # Exploratory SQL — not materialized in the database
 └── .github/workflows/    # CI/CD — dbt compile on every push
 ```
