@@ -1,17 +1,23 @@
 """
 Backtest — Whale Signal Strategy
-=================================
-Signal  : volume > 2.5× 20-day rolling average (from `whale_signals` Gold model)
-Entry   : open price the next trading day after the signal
-Exit    : close price after N trading days (tested for 3, 5, and 10 days)
-Benchmark: S&P 500 (^GSPC) buy-and-hold return over the same holding window
+===================================
+Tests whether a volume spike on a stock predicts a short-term price gain.
 
-Results are saved to the `backtest_whale_signals` PostgreSQL table.
+  Signal   : volume > 2.5× 20-day rolling average (from `whale_signals` Gold model)
+  Entry    : open price the next trading day after the signal
+  Exit     : close price after N trading days — HOLD_PERIODS = [3, 5, 10]
+  Benchmark: S&P 500 (^GSPC) return over the same window (alpha = trade − benchmark)
+
+See README for the rationale behind the 2.5× threshold and holding periods.
+Prerequisites: run `load_data.py` then `dbt run` before executing this script.
+Output: summary printed to terminal + all trades saved to `public.backtest_whale_signals`
+
 Run with: python3 backtest.py
 """
 
 import logging
 import os
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -22,10 +28,15 @@ load_dotenv()
 
 # ── Logging ────────────────────────────────────────────────────────────────────
 
+Path("logs").mkdir(exist_ok=True)  # created at runtime, ignored by git (see .gitignore)
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s — %(levelname)s — %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S",
+    handlers=[
+        logging.StreamHandler(),
+        logging.FileHandler("logs/backtest.log", mode="a", encoding="utf-8"),
+    ],
 )
 logger = logging.getLogger(__name__)
 
@@ -33,6 +44,13 @@ logger = logging.getLogger(__name__)
 
 HOLD_PERIODS  = [3, 5, 10]   # trading days to hold the position
 OUTPUT_TABLE  = "backtest_whale_signals"
+
+# Optional date filter — restrict signals to a specific window.
+# whale_signals contains up to 2 years of history (same window as load_data.py).
+# Leave as None to use the full history; set a date string to narrow the scope.
+#   e.g. SIGNAL_START = "2025-01-01"  →  only signals from 2025 onwards
+SIGNAL_START: str | None = None   # "YYYY-MM-DD" or None
+SIGNAL_END:   str | None = None   # "YYYY-MM-DD" or None
 
 
 # ── Data loading ───────────────────────────────────────────────────────────────
@@ -50,21 +68,36 @@ def load_data(engine) -> tuple[pd.DataFrame, pd.DataFrame]:
         engine,
         parse_dates=["signal_date"],
     )
-    logger.info("  → %d signals found for %d tickers", len(signals), signals["ticker"].nunique())
+    logger.info("  → %d signals found for %d tickers (full 2-year history)", len(signals), signals["ticker"].nunique())
+
+    if SIGNAL_START:
+        signals = signals[signals["signal_date"] >= pd.Timestamp(SIGNAL_START)]
+    if SIGNAL_END:
+        signals = signals[signals["signal_date"] <= pd.Timestamp(SIGNAL_END)]
+    if SIGNAL_START or SIGNAL_END:
+        logger.info("  → %d signals after date filter (%s → %s)", len(signals), SIGNAL_START or "start", SIGNAL_END or "today")
 
     tickers = signals["ticker"].unique().tolist() + ["^GSPC"]
     logger.info("Loading price history for %d tickers + S&P 500 benchmark...", len(tickers))
-    prices = pd.read_sql(
-        """
-        SELECT ticker, date, open, close
-        FROM public.stg_stock_prices
-        WHERE ticker = ANY(%(tickers)s)
-        ORDER BY ticker, date
-        """,
-        engine,
-        params={"tickers": tickers},
-        parse_dates=["date"],
-    )
+    try:
+        prices = pd.read_sql(
+            """
+            SELECT ticker, date, open, close
+            FROM public.stg_stock_prices
+            WHERE ticker = ANY(%(tickers)s)
+            ORDER BY ticker, date
+            """,
+            engine,
+            params={"tickers": tickers},
+            parse_dates=["date"],
+        )
+    except Exception as e:
+        if "stg_stock_prices" in str(e):
+            raise RuntimeError(
+                "stg_stock_prices not found — run `dbt run` before executing this script.\n"
+                "The view is dropped by load_data.py (CASCADE) and must be rebuilt by dbt."
+            ) from e
+        raise
     logger.info("  → %d price rows loaded", len(prices))
 
     return signals, prices
@@ -96,17 +129,24 @@ def run_backtest(signals: pd.DataFrame, prices: pd.DataFrame) -> pd.DataFrame:
         sector      = signal["sector"]
 
         ticker_prices = price_map.get(ticker)
+        # Guard: ticker present in whale_signals but missing from price history.
+        # Should not happen if dbt ran correctly (both derive from the same source),
+        # but can occur with partial yfinance loads, delisted tickers, or stale data.
         if ticker_prices is None:
             continue
 
-        # Locate the signal date in the price series
         signal_idx_list = ticker_prices.index[ticker_prices["date"] == signal_date].tolist()
+        # Guard: signal date not found in price series.
+        # Same root cause as above — desync between whale_signals and stg_stock_prices,
+        # or a date that exists in one model but not the other (e.g. partial load, holiday gap).
         if not signal_idx_list:
             continue
         signal_idx = signal_idx_list[0]
 
         # Entry = open of next trading day
         entry_idx = signal_idx + 1
+        # Guard: signal falls on the last available day in the dataset — no "next day" exists.
+        # Not a data quality issue; a temporal boundary inherent to any finite dataset.
         if entry_idx >= len(ticker_prices):
             continue
         entry_row   = ticker_prices.loc[entry_idx]
@@ -118,6 +158,9 @@ def run_backtest(signals: pd.DataFrame, prices: pd.DataFrame) -> pd.DataFrame:
 
         for hold_days in HOLD_PERIODS:
             exit_idx = entry_idx + hold_days
+            # Guard: not enough future data to reach the exit day for this hold period.
+            # The signal is too recent relative to what's loaded — the exit date is beyond
+            # the last row in the dataset. Other hold periods for the same signal still run.
             if exit_idx >= len(ticker_prices):
                 continue
 

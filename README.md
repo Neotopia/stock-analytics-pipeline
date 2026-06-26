@@ -58,6 +58,11 @@ flowchart LR
         M[Stock Analytics\nDashboard]
     end
 
+    subgraph Backtest["🔬 Backtest — Python · pandas"]
+        N[backtest.py]
+        O[(backtest_whale_signals)]
+    end
+
     A --> D
     B --> D
     B --> E
@@ -66,6 +71,9 @@ flowchart LR
     F --> G
     G --> H & I & J & K & L
     H & I & J & K & L --> M
+    G --> N
+    K --> N
+    N --> O
 ```
 
 - **Bronze** — raw tables loaded by `load_data.py`: `stock_prices_raw` (OHLCV) and `ticker_news_raw` (Finviz headlines)
@@ -147,26 +155,32 @@ stock-analytics-pipeline/
 
 ## Backtesting — Whale Signal Strategy
 
-`backtest.py` tests whether whale signal detections (volume spikes > 2.5× the 20-day rolling average) are genuinely predictive of short-term price moves.
+`backtest.py` tests whether whale signal detections are genuinely predictive of short-term price moves.
 
 **Logic (pure pandas, no external library):**
 
 | Step | Detail |
 |------|--------|
-| Signal source | `whale_signals` Gold model — one row per ticker/date where volume ≥ 2.5× avg |
+| Signal source | `whale_signals` Gold model — one row per ticker/date where volume ≥ 2.5× 20-day avg |
 | Entry | Open price the **next trading day** after the signal (realistic — signal seen after close) |
 | Exit | Close price after **N trading days** (tested for 3, 5, 10) |
 | Benchmark | S&P 500 (`^GSPC`) buy-and-hold return over the same window |
 | Alpha | Trade return − benchmark return |
 
+**Why 2.5× volume?** When an institutional investor (fund, bank) enters a large position, it creates a mechanical spike in volume it can't hide. The 2.5× threshold is a practitioner convention common in quant trading (range: 2×–3×). The academic backing exists — Lee & Swaminathan (2000) showed volume predicts price momentum — but the optimal threshold is empirical and specific to each ticker universe. `HOLD_PERIODS` is a single parameter to adjust freely.
+
+**Why 3, 5, 10 days?** These map to natural trading horizons: immediate reaction (3d), one full week (5d), two weeks (10d). The backtest tells you which actually works on this data.
+
 **Output metrics (printed to console + saved to PostgreSQL):**
 
-- Win rate, average return, median return, best/worst trade
-- Alpha vs S&P 500 per holding period
-- Results table written to `public.backtest_whale_signals`
+- Win rate, average return, median return, best/worst trade per holding period
+- Alpha vs S&P 500
+- Full trade log written to `public.backtest_whale_signals`
 
 ```bash
-python3 backtest.py
+python3 load_data.py   # 1. ingest
+dbt run                # 2. transform
+python3 backtest.py    # 3. analyse
 ```
 
 ## CI / CD
@@ -187,3 +201,11 @@ Every push to `main` triggers a GitHub Actions workflow that installs dependenci
 - dbt seeds for reference data with auto-refresh logic
 - GitHub Actions CI — dbt compile on every push (Option B with ephemeral PostgreSQL in progress)
 - Backtesting with pure pandas: rolling index join, forward price lookup, alpha vs benchmark
+
+## Roadmap
+
+Possible next steps to extend the project:
+
+- **CI Option B** — full `dbt run` + `dbt test` against an ephemeral PostgreSQL container in GitHub Actions
+- **Pipeline orchestration** — replace the manual `load_data → dbt run → backtest` sequence with a lightweight orchestrator (Prefect or a Makefile) that enforces execution order, handles failures, and logs each run
+- **Metabase cloud** — deploy Metabase + PostgreSQL on Railway.app to make the dashboard publicly accessible
