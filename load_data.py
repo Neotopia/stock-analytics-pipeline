@@ -1,3 +1,23 @@
+"""
+Ingestion pipeline — Bronze layer
+===================================
+Loads raw market data into PostgreSQL from three sources:
+
+  1. SPDR ETF holdings  — top 5 stocks per sector (XLK, XLF, XLV, XLY, XLE)
+                          downloaded from SSGA's official daily Excel files.
+  2. Finviz screener    — 5 most volatile S&P 500 / NASDAQ 100 stocks of the day
+                          + 5 stocks with the strongest analyst buy consensus.
+  3. Yahoo Finance      — OHLCV prices for all tickers above (rolling 2-year window)
+                          via yfinance; indices (^GSPC, ^FCHI, ^FTSE, ^N225, ^BSESN)
+                          are downloaded the same way.
+
+Output tables in PostgreSQL:
+  - stock_prices_raw   : one row per (date, ticker) — replaced on every run
+  - ticker_news_raw    : latest Finviz headlines for the volatile tickers
+
+Run with: python3 load_data.py
+"""
+
 import io
 import logging
 import requests
@@ -15,10 +35,15 @@ load_dotenv()  # Load DATABASE_URL from .env (never committed — see .gitignore
 
 # ── Logging ────────────────────────────────────────────────────────────────────
 
+Path("logs").mkdir(exist_ok=True)  # created at runtime, ignored by git (see .gitignore)
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s — %(levelname)s — %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S",
+    handlers=[
+        logging.StreamHandler(),
+        logging.FileHandler("logs/load_data.log", mode="a", encoding="utf-8"),
+    ],
 )
 logger = logging.getLogger(__name__)
 
@@ -213,7 +238,10 @@ def download_prices(tickers: list[str], start: date, end: date) -> pd.DataFrame:
     stack() pivots it to long format: one row per (date, ticker).
     Indices like ^GSPC are downloaded exactly like equities.
     """
-    df = yf.download(" ".join(tickers), start=start, end=end, threads=False)
+    df = yf.download(" ".join(tickers), start=start, end=end, threads=False, auto_adjust=True)
+    # auto_adjust=True: all OHLC prices are retroactively adjusted for stock splits and
+    # dividends, so historical series are comparable. Without it, a 2-for-1 split would
+    # create an apparent -50% drop that would generate false whale signals.
     # threads=False avoids SQLite cache lock errors on Mac with multi-ticker downloads.
     df = df.stack(level=1, future_stack=True).reset_index()
     df.columns.name = None
