@@ -130,6 +130,7 @@ dbt test
 ```
 stock-analytics-pipeline/
 ├── load_data.py          # Ingestion: SPDR + Finviz + yfinance → PostgreSQL
+├── backtest.py           # Whale signal backtesting — pure pandas, saves to PostgreSQL
 ├── .env.example          # Database connection template (never commit .env)
 ├── dbt_project.yml       # dbt config (materializations, schemas)
 ├── packages.yml          # dbt package dependencies (dbt_utils)
@@ -142,6 +143,30 @@ stock-analytics-pipeline/
 ├── tests/                # Custom singular tests (SQL queries returning failing rows)
 ├── analyses/             # Exploratory SQL — not materialized in the database
 └── .github/workflows/    # CI/CD — dbt compile on every push
+```
+
+## Backtesting — Whale Signal Strategy
+
+`backtest.py` tests whether whale signal detections (volume spikes > 2.5× the 20-day rolling average) are genuinely predictive of short-term price moves.
+
+**Logic (pure pandas, no external library):**
+
+| Step | Detail |
+|------|--------|
+| Signal source | `whale_signals` Gold model — one row per ticker/date where volume ≥ 2.5× avg |
+| Entry | Open price the **next trading day** after the signal (realistic — signal seen after close) |
+| Exit | Close price after **N trading days** (tested for 3, 5, 10) |
+| Benchmark | S&P 500 (`^GSPC`) buy-and-hold return over the same window |
+| Alpha | Trade return − benchmark return |
+
+**Output metrics (printed to console + saved to PostgreSQL):**
+
+- Win rate, average return, median return, best/worst trade
+- Alpha vs S&P 500 per holding period
+- Results table written to `public.backtest_whale_signals`
+
+```bash
+python3 backtest.py
 ```
 
 ## CI / CD
@@ -161,3 +186,4 @@ Every push to `main` triggers a GitHub Actions workflow that installs dependenci
 - Credential management with python-dotenv
 - dbt seeds for reference data with auto-refresh logic
 - GitHub Actions CI — dbt compile on every push (Option B with ephemeral PostgreSQL in progress)
+- Backtesting with pure pandas: rolling index join, forward price lookup, alpha vs benchmark
