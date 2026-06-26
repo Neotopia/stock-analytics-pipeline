@@ -9,11 +9,20 @@ Tests whether a volume spike on a stock predicts a short-term price gain.
   Benchmark: S&P 500 (^GSPC) return over the same window (alpha = trade − benchmark)
 
 See README for the rationale behind the 2.5× threshold and holding periods.
-Prerequisites: run `load_data.py` then `dbt run` before executing this script.
+
+Prerequisites (in order):
+  1. python3 load_data.py   — ingests raw prices into PostgreSQL (Bronze)
+  2. dbt run                — rebuilds stg_stock_prices and whale_signals (Silver + Gold)
+                              Note: load_data.py drops stg_stock_prices via CASCADE;
+                              dbt run must be re-executed after every ingestion.
+  3. python3 backtest.py    — this script
+
 Output: summary printed to terminal + all trades saved to `public.backtest_whale_signals`
 
 Run with: python3 backtest.py
 """
+
+from __future__ import annotations  # enables str | None syntax on Python 3.9
 
 import logging
 import os
@@ -49,8 +58,8 @@ OUTPUT_TABLE  = "backtest_whale_signals"
 # whale_signals contains up to 2 years of history (same window as load_data.py).
 # Leave as None to use the full history; set a date string to narrow the scope.
 #   e.g. SIGNAL_START = "2025-01-01"  →  only signals from 2025 onwards
-SIGNAL_START: str | None = None   # "YYYY-MM-DD" or None
-SIGNAL_END:   str | None = None   # "YYYY-MM-DD" or None
+SIGNAL_START = None   # "YYYY-MM-DD" or None — e.g. "2025-01-01"
+SIGNAL_END   = None   # "YYYY-MM-DD" or None
 
 
 # ── Data loading ───────────────────────────────────────────────────────────────
@@ -62,7 +71,7 @@ def load_data(engine) -> tuple[pd.DataFrame, pd.DataFrame]:
     signals = pd.read_sql(
         """
         SELECT ws.ticker, ws.date AS signal_date, ws.sector
-        FROM public.whale_signals ws
+        FROM public.whale_signals_history ws
         ORDER BY ws.ticker, ws.date
         """,
         engine,
@@ -83,7 +92,7 @@ def load_data(engine) -> tuple[pd.DataFrame, pd.DataFrame]:
         prices = pd.read_sql(
             """
             SELECT ticker, date, open, close
-            FROM public.stg_stock_prices
+            FROM public_staging.stg_stock_prices
             WHERE ticker = ANY(%(tickers)s)
             ORDER BY ticker, date
             """,
